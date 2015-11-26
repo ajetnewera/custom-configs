@@ -1,0 +1,66 @@
+upstream erp {
+  server 127.0.0.1:8069 weight=1 fail_timeout={{ FAIL_TIMEOUT }};
+}
+
+upstream erpim {
+  server 127.0.0.1:8072 weight=1 fail_timeout={{ IM_FAIL_TIMEOUT }};
+}
+
+server {
+  listen                     80 default_server;
+  charset                    utf-8;
+
+  # ssl log files
+  access_log                 /var/log/odoo/nginx-access.log;
+  error_log                  /var/log/odoo/nginx-error.log;
+
+  # add ssl specific settings
+  keepalive_timeout          {{ KEEPALIVE_TIMEOUT }};
+
+  # increase proxy buffer to handle some OpenERP web requests
+  proxy_buffers              16 64k;
+  proxy_buffer_size          128k;
+
+  proxy_connect_timeout      {{ PROXY_CONNECT_TIMEOUT }};
+  proxy_send_timeout         {{ PROXY_SEND_TIMEOUT }};
+  proxy_read_timeout         {{ PROXY_READ_TIMEOUT }};
+  # Specifies the maximum accepted body size of a client request,
+  # as indicated by the request header Content-Length.
+  client_max_body_size       100m;
+
+  # force timeouts if the backend dies
+  proxy_next_upstream        error timeout invalid_header http_500 http_502 http_503;
+
+  # set headers
+  proxy_set_header           Host $host;
+  proxy_set_header           X-Real-IP $remote_addr;
+  proxy_set_header           X-Forward-For $proxy_add_x_forwarded_for;
+  proxy_set_header           X-Forwarded-Proto $scheme;
+
+  # by default, do not forward anything
+  proxy_redirect             off;
+
+  gzip                       on;
+  gzip_min_length            1100;
+  gzip_buffers               4 32k;
+  gzip_types                 text/plain application/x-javascript text/xml text/css;
+  gzip_vary                  on;
+
+  location / {
+    proxy_pass               http://erp;
+  }
+
+  location /longpolling {
+    proxy_pass              http://erpim;
+  }
+
+  # cache some static data in memory for 60mins.
+  # under heavy load this should relieve stress on the OpenERP web interface a bit.
+  location ~* /web/static/ {
+    proxy_cache_valid       200 60m;
+    proxy_buffering         on;
+    expires                 864000;
+    proxy_pass              http://erp;
+  }
+
+}
