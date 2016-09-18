@@ -1,0 +1,11 @@
+## download the below file 
+
+curl https://raw.githubusercontent.com/git/git/master/contrib/completion/git-completion.bash -o ~/.git-completion.bash
+
+## Now add the below content to you ~/.bash_profile
+if [ -f ~/.git-completion.bash ]; then
+  . ~/.git-completion.bash
+fi
+
+## To take immediate effect 
+source ~/.bash_profile
